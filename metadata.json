@@ -1,0 +1,6 @@
+{
+  "name": "NutriVerse",
+  "description": "Explore food in 3D, understand your nutrition, and plan affordable balanced meals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
