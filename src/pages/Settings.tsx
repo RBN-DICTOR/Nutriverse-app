@@ -49,6 +49,7 @@ export default function Settings() {
         <div className="card"><h3>Privacy and your data</h3>
           <p className="fine">Meals, plans, prices and preferences are saved in the server’s built-in SQLite database and cached in this browser. Scan photos are never saved. AI features send only what is described on their pages. Consider Kenya’s Data Protection Act, 2019, before adding multi-user accounts.</p>
           <div className="row wrap">
+            <a className="btn outline" href="/NutriVerse-Documentation.pdf" download="NutriVerse-Documentation.pdf">Download app docs (PDF)</a>
             <button className="btn outline" onClick={() => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ ...s, history: undefined }, null, 2)], { type: 'application/json' })); a.download = 'nutriverse-data.json'; a.click(); }}>Export my data</button>
             <button className="btn danger" onClick={() => { if (confirm('Delete all saved NutriVerse data from the database and this browser? This cannot be undone.')) clearAll(); }}>Delete all my data</button>
           </div>

@@ -159,6 +159,7 @@ export default function App() {
                 <a href="#/compare">Compare meals</a>
                 <a href="#/explore">Food explorer</a>
                 <a href="#/settings">Profile &amp; data</a>
+                <a href="/NutriVerse-Documentation.pdf" download="NutriVerse-Documentation.pdf">Documentation (PDF)</a>
               </div>
               <button
                 type="button"

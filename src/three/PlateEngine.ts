@@ -165,7 +165,7 @@ export class PlateEngine {
     r.domElement.style.touchAction = hero ? 'pan-y' : 'none';
 
     if (this.effects.depthFog) {
-      this.scene.fog = new THREE.FogExp2('#123B2A', hero ? 0.028 : 0.024);
+      this.scene.fog = new THREE.FogExp2('#123B2A', hero ? 0.019 : 0.024);
     }
 
     const pmrem = new THREE.PMREMGenerator(r);
@@ -282,7 +282,7 @@ export class PlateEngine {
     Object.assign(this.controls, {
       enableDamping: true,
       minDistance: opts.detailFood ? 3.2 : 5,
-      maxDistance: 22,
+      maxDistance: hero ? 36 : 22,
       maxPolarAngle: 1.38,
       autoRotate: (hero || !!opts.turntable) && !this.reduced,
       autoRotateSpeed: opts.detailFood ? 0.9 : 0.7,
@@ -316,7 +316,10 @@ export class PlateEngine {
     if (hero && this.effects.heroIntro && !this.reduced) {
       this.introAge = 0;
       this.introDone = false;
-      this.camera.position.set(0, 14.5, 16.5);
+      const { pos, look } = this.heroPose();
+      this.controls.target.copy(look);
+      this.camera.position.copy(look).addScaledVector(pos.clone().sub(look), 1.45);
+      this.controls.update();
       this.stageRoot.rotation.y = -Math.PI * 1.15;
     } else {
       this.introDone = true;
@@ -382,17 +385,53 @@ export class PlateEngine {
     old.dispose();
   }
 
+  private heroPose() {
+    const aspect = this.camera.aspect || 1;
+    const tanV = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const tanH = tanV * aspect;
+    // Fit woven mat (r = 4.6) and floating hero foods (r <= 5.65) cleanly on laptop and narrow screens.
+    const dH = 5.65 / (0.92 * tanH);
+    const dV = 4.95 / (0.86 * tanV);
+    const dist = Math.max(13.2, dH, dV);
+    const look = new THREE.Vector3(0, 0.05, 0);
+    const dir = new THREE.Vector3(0, 8.2, 9.6).normalize();
+    const pos = look.clone().addScaledVector(dir, dist);
+    return { pos, look, dist };
+  }
+
   private resize() {
     const w = this.host.clientWidth || 1, h = this.host.clientHeight || 1;
+    const aspect = w / h;
     this.renderer.setSize(w, h);
-    this.camera.aspect = w / h;
-    this.camera.fov = w / h < 1 ? Math.min(62, 36 / Math.max(0.55, w / h)) : 36;
+    this.camera.aspect = aspect;
+    this.camera.fov = this.hero
+      ? (aspect < 1 ? Math.min(50, 36 / Math.max(0.72, aspect)) : 36)
+      : (aspect < 1 ? Math.min(62, 36 / Math.max(0.55, aspect)) : 36);
     this.camera.updateProjectionMatrix();
+    if (this.hero && this.introDone) {
+      const { pos, look, dist } = this.heroPose();
+      this.controls.maxDistance = Math.max(36, dist * 1.6);
+      const offset = this.camera.position.clone().sub(this.controls.target);
+      if (offset.lengthSq() > 0.01) {
+        offset.setLength(dist);
+        this.controls.target.copy(look);
+        this.camera.position.copy(look).add(offset);
+      } else {
+        this.controls.target.copy(look);
+        this.camera.position.copy(pos);
+      }
+      this.controls.update();
+    }
   }
 
   setView(view: View, instant = false) {
     const look = new THREE.Vector3(0, this.opts.detailFood ? 0.35 : 0.2, 0);
     let pos = this.opts.detailFood ? new THREE.Vector3(0, 3.6, 5.4) : new THREE.Vector3(0, 8.4, 9.6);
+    if (view === 'full' && this.hero) {
+      const pose = this.heroPose();
+      look.copy(pose.look);
+      pos.copy(pose.pos);
+    }
     if (view === 'top') pos = new THREE.Vector3(0, 13, 0.05);
     if (view === 'close') {
       const e = this.selected ? this.foods.get(this.selected) : undefined;
@@ -723,7 +762,10 @@ export class PlateEngine {
       this.introAge += dt;
       const p = Math.min(1, this.introAge / 1.6);
       const ease = 1 - Math.pow(1 - p, 3);
-      this.camera.position.set(0, THREE.MathUtils.lerp(14.5, 8.4, ease), THREE.MathUtils.lerp(16.5, 9.6, ease));
+      const { pos, look } = this.heroPose();
+      const startPos = look.clone().addScaledVector(pos.clone().sub(look), 1.45);
+      this.controls.target.copy(look);
+      this.camera.position.lerpVectors(startPos, pos, ease);
       this.stageRoot.rotation.y = THREE.MathUtils.lerp(-Math.PI * 1.15, 0, ease);
       if (p >= 1) {
         this.introDone = true;
