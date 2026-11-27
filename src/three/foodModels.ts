@@ -67,7 +67,7 @@ function spotted(base: string, spot: string, rand: () => number, n = 90) {
   return t;
 }
 
-function leafGeometry() {
+export function leafGeometry() {
   const g = new THREE.PlaneGeometry(0.8, 0.42, 10, 6);
   const p = g.attributes.position as THREE.BufferAttribute;
   for (let i = 0; i < p.count; i++) {
@@ -303,13 +303,22 @@ export function createFoodModel(food: Food): THREE.Group {
 
 export function disposeObject(o: THREE.Object3D) {
   o.traverse(c => {
-    const m = c as THREE.Mesh;
-    if (!m.isMesh) return;
-    m.geometry.dispose();
-    for (const material of Array.isArray(m.material) ? m.material : [m.material]) {
-      (material as THREE.MeshPhysicalMaterial).map?.dispose();
-      material.dispose();
+    const obj = c as THREE.Mesh & THREE.Points & THREE.Sprite & THREE.InstancedMesh;
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      for (const material of Array.isArray(obj.material) ? obj.material : [obj.material]) {
+        const phys = material as THREE.MeshPhysicalMaterial & { uniforms?: Record<string, { value?: unknown }> };
+        phys.map?.dispose();
+        if (phys.uniforms) {
+          for (const u of Object.values(phys.uniforms)) {
+            if (u?.value && typeof (u.value as THREE.Texture).dispose === 'function' && (u.value as THREE.Texture).isTexture) {
+              (u.value as THREE.Texture).dispose();
+            }
+          }
+        }
+        material.dispose();
+      }
     }
-    (m as THREE.InstancedMesh).isInstancedMesh && (m as THREE.InstancedMesh).dispose();
+    if (obj.isInstancedMesh) obj.dispose();
   });
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CATEGORIES, NUTRIENTS, type NutrientKey } from '../data/foods';
 import { PlateStage } from '../components/PlateStage';
 import { go, Page, Quality, Swatch } from '../components/ui';
+import { useTilt } from '../lib/motion';
 import { fmt, isAllowed, portion } from '../lib/nutrition';
 import { addToPlate, setState, useFoods, useStore } from '../lib/store';
 
@@ -13,6 +14,7 @@ export default function Explorer({ id }: { id?: string }) {
 function List() {
   const { foods } = useFoods();
   const { prices, currency } = useStore();
+  const tilt = useTilt(8);
   const [q, setQ] = useState(''), [category, setCategory] = useState(''), [nutrient, setNutrient] = useState<NutrientKey | ''>('');
   const [diet, setDiet] = useState(''), [prep, setPrep] = useState(''), [sort, setSort] = useState('name');
   const n = NUTRIENTS.find(x => x.key === nutrient);
@@ -33,7 +35,7 @@ function List() {
       </div>
       <p className="fine">{list.length} foods{n ? `, ranked by ${n.label.toLowerCase()} per 100 g. Foods with no data are hidden, not ranked as zero.` : ''}</p>
       <div className="tiles">
-        {list.map(f => <button key={f.id} onClick={() => go(`/food/${f.id}`)}><Swatch food={f} size={76} /><b>{f.name}</b><span>{n ? `${fmt(f.nutrients[n.key], n.unit)} / 100 g` : f.category}</span>{sort === 'cost' && <span>{prices[f.id] ? `${currency} ${prices[f.id].perKg}/kg` : 'No price entered'}</span>}</button>)}
+        {list.map(f => <button key={f.id} className="tilt-card" {...tilt} onClick={() => go(`/food/${f.id}`)}><Swatch food={f} size={76} /><b>{f.name}</b><span>{n ? `${fmt(f.nutrients[n.key], n.unit)} / 100 g` : f.category}</span>{sort === 'cost' && <span>{prices[f.id] ? `${currency} ${prices[f.id].perKg}/kg` : 'No price entered'}</span>}</button>)}
       </div>
       {!list.length && <p className="empty">Nothing matches. Try clearing a filter.</p>}
     </Page>
@@ -50,7 +52,10 @@ function Detail({ id }: { id: string }) {
     <Page eyebrow={f.category} title={f.name} intro={f.description} actions={<><button className="btn outline" onClick={() => go('/explore')}>All foods</button><button className="btn" disabled={!allowed} onClick={() => { addToPlate(f); go('/build'); }}>Add to Plate</button></>}>
       {!allowed && <p className="warn">This food conflicts with your diet, allergy or avoid settings.</p>}
       <div className="split">
-        <div className="detail-stage"><PlateStage key={f.id} items={[{ uid: 'solo-' + f.id, foodId: f.id, grams: f.defaultServingGrams, pos: { x: 0, z: 0 } }]} cat={cat} label={`3D model of ${f.name}`} /></div>
+        <div>
+          <div className="detail-stage"><PlateStage key={f.id} detailFood={f} turntable items={[{ uid: 'solo-' + f.id, foodId: f.id, grams: f.defaultServingGrams, pos: { x: 0, z: 0 } }]} cat={cat} label={`3D model of ${f.name} on a pedestal with orbiting nutrient orbs`} /></div>
+          <p className="fine">Orb size is proportional to grams per 100 g.</p>
+        </div>
         <div className="card">
           <div className="row between"><h3>Nutrition</h3><Quality food={f} /></div>
           <table><thead><tr><th>Nutrient</th><th>Per 100 g</th><th>Per serving</th></tr></thead>

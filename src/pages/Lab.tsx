@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MACROS, MICROS, REFERENCES } from '../data/learn';
 import { NUTRIENTS } from '../data/foods';
 import { Bars, go, Page } from '../components/ui';
+import { useTilt } from '../lib/motion';
 import { useFoods } from '../lib/store';
 
 const ANIMAL = ['Animal-source foods', 'Dairy'];
@@ -10,6 +11,7 @@ const SYMBOLS = ['Cb', 'Pr', 'Ft', 'Fb', 'Fe', 'A', 'C', 'D', 'B12', 'B9', 'Ca',
 export default function Lab() {
   const { foods } = useFoods();
   const [name, setName] = useState('Iron');
+  const tilt = useTilt(6);
   const micro = MICROS.find(m => m.name === name);
   const macro = MACROS.find(m => m.name === name);
   const key = (micro ?? macro)!.key;
@@ -21,11 +23,11 @@ export default function Lab() {
   return (
     <Page eyebrow="Nutrition Lab" title="Make nutrients visible" intro="Pick an element and see where it comes from.">
       <div className="periodic">
-        {[...MACROS, ...MICROS].map((m, i) => <button key={m.name} className={name === m.name ? 'on' : ''} onClick={() => setName(m.name)}><small>{i + 1}</small><b>{SYMBOLS[i]}</b><span>{m.name}</span></button>)}
+        {[...MACROS, ...MICROS].map((m, i) => <button key={m.name} className={`tilt-card${name === m.name ? ' on' : ''}`} {...tilt} onClick={() => setName(m.name)}><small>{i + 1}</small><b>{SYMBOLS[i]}</b><span>{m.name}</span></button>)}
       </div>
       <div className="split">
         <div className="card">
-          <h2>{name}</h2>
+          <h2 className="reveal">{name}</h2>
           {macro && <ul>{macro.text.map(t => <li key={t}>{t}</li>)}</ul>}
           {micro && <><p><b>What it does.</b> {micro.role}</p><p><b>If intake is low.</b> {micro.low}</p><p><b>In meals.</b> {micro.pair}</p><p><a href={micro.ref} target="_blank" rel="noreferrer">Reference: NIH Office of Dietary Supplements ↗</a></p></>}
           <p className="fine">Food choices or a photo cannot diagnose a deficiency. See a qualified health professional about concerns.</p>
@@ -47,8 +49,8 @@ function Versus() {
   const { foods, cat } = useFoods();
   const [a, setA] = useState('beans'), [b, setB] = useState('fish'), [grams, setGrams] = useState(100);
   return (
-    <div className="card">
-      <h2>Food versus food</h2>
+    <div className="card reveal">
+      <h2 className="reveal">Food versus food</h2>
       <div className="row wrap">
         {[[a, setA], [b, setB]].map(([v, set], i) => <select key={i} aria-label={`Food ${i + 1}`} value={v as string} onChange={e => (set as (x: string) => void)(e.target.value)}>{foods.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select>)}
         <label className="grams"><input type="number" min={1} value={grams} onChange={e => setGrams(Math.max(1, +e.target.value))} />g of each</label>

@@ -17,6 +17,7 @@ export default function Builder() {
   const [name, setName] = useState('');
   const [msg, setMsg] = useState('');
   const [swaps, setSwaps] = useState(false);
+  const [matched, setMatched] = useState(false);
   const stage = useRef<StageHandle>(null);
   const item = plate.find(i => i.uid === sel && cat[i.foodId]);
   const food = item ? cat[item.foodId] : null;
@@ -53,10 +54,18 @@ export default function Builder() {
       </aside>
 
       <section className="table">
-        <PlateStage ref={stage} items={plate} cat={cat} selected={sel} onSelect={setSel}
+        <PlateStage
+          ref={stage}
+          items={plate}
+          cat={cat}
+          selected={sel}
+          emptyGhost={!plate.length}
+          onSelect={setSel}
+          onCompassComplete={setMatched}
           onMove={(id, x, z) => setPlate(plate.map(i => (i.uid === id ? { ...i, pos: { x, z } } : i)))}
-          onDropFood={(id, pos) => cat[id] && add(cat[id], pos)} />
-        {!plate.length && <div className="plate-empty"><h3>An empty plate, full of possibility</h3><p>Tap a food or drag it here.</p><button className="btn lime" onClick={() => setPlate(SAMPLE.map(i => ({ ...i })))}>Load ugali, beans and sukuma wiki</button></div>}
+          onDropFood={(id, pos) => cat[id] && add(cat[id], pos)}
+        />
+        {!plate.length && <div className="plate-empty"><h3>An empty plate, full of possibility</h3><p>Drop a food here, or tap one on the shelf.</p><button className="btn lime" onClick={() => setPlate(SAMPLE.map(i => ({ ...i })))}>Load ugali, beans and sukuma wiki</button></div>}
         <div className="cam" role="toolbar" aria-label="Camera controls">
           <button onClick={() => stage.current?.rotate(-0.5)} aria-label="Rotate left">⟲</button>
           <button onClick={() => stage.current?.rotate(0.5)} aria-label="Rotate right">⟳</button>
@@ -66,7 +75,8 @@ export default function Builder() {
           <button onClick={() => stage.current?.view('close')} disabled={!item}>Focus</button>
           <button onClick={() => stage.current?.view('full')}>Reset view</button>
         </div>
-        <div className="toast" role="status">{msg}</div>
+        {matched && plate.length > 0 && <div className="matched-cue" role="status"><span className="badge matched-badge">Plate matched</span></div>}
+        <div className="toast" role="status" key={msg}>{msg}</div>
         {item && food && (
           <div className="portion">
             <div className="row between"><div className="row"><Swatch food={food} size={34} /><div><b>{food.name}</b><small>{food.preparationMethod} · {food.rawOrCooked}</small></div></div><button className="x" onClick={() => setSel(null)} aria-label="Close">✕</button></div>
