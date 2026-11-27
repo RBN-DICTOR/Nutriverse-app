@@ -1,7 +1,9 @@
 // Lightweight built-in SQLite store using Node's native node:sqlite module.
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync as SqliteDatabase } from 'node:sqlite';
 import { NUTRIENTS, type Allergen, type Diet, type NutrientKey, type Nutrients } from '../src/data/foods';
 import type { MealItem, Prefs } from '../src/lib/nutrition';
 import type { PlanDay, PlanMeal, Price, Prices, Slot } from '../src/lib/planner';
@@ -268,14 +270,61 @@ const cleanWorkspaceId = (id?: string) => {
   return /^[a-zA-Z0-9_-]+$/.test(s) ? s : 'default';
 };
 
-export function createStore(dbPath?: string): NutriDb {
-  const target = dbPath || process.env.NUTRIVERSE_DB_PATH || path.resolve(process.cwd(), 'data', 'nutriverse.sqlite');
-  if (target !== ':memory:') {
-    fs.mkdirSync(path.dirname(target), { recursive: true });
+const require = createRequire(import.meta.url);
+
+function loadDatabaseSync(): (new (location: string) => SqliteDatabase) | null {
+  try {
+    const mod = require('node:sqlite') as { DatabaseSync?: new (location: string) => SqliteDatabase };
+    return mod.DatabaseSync ?? null;
+  } catch {
+    return null;
   }
-  const db = new DatabaseSync(target);
-  if (target !== ':memory:') {
-    db.exec('PRAGMA journal_mode = WAL;');
+}
+
+function createMemoryStore(): NutriDb {
+  const mem = new Map<string, PersistedState>();
+  return {
+    loadWorkspaceState(workspaceId?: string) {
+      const ws = cleanWorkspaceId(workspaceId);
+      const hit = mem.get(ws);
+      return hit ? { hasData: true, state: structuredClone(hit) } : { hasData: false, state: defaultPersistedState() };
+    },
+    saveWorkspaceState(raw: unknown, workspaceId?: string) {
+      const ws = cleanWorkspaceId(workspaceId);
+      const next = sanitizeState(raw);
+      mem.set(ws, structuredClone(next));
+      return next;
+    },
+    clearWorkspaceState(workspaceId?: string) {
+      mem.delete(cleanWorkspaceId(workspaceId));
+    },
+    close() {
+      mem.clear();
+    },
+  };
+}
+
+export function createStore(dbPath?: string): NutriDb {
+  const DatabaseSync = loadDatabaseSync();
+  if (!DatabaseSync) return createMemoryStore();
+
+  const defaultPath = process.env.VERCEL
+    ? path.join(os.tmpdir(), 'nutriverse.sqlite')
+    : path.resolve(process.cwd(), 'data', 'nutriverse.sqlite');
+  const target = dbPath || process.env.NUTRIVERSE_DB_PATH || defaultPath;
+
+  let db: SqliteDatabase;
+  try {
+    if (target !== ':memory:') {
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+    }
+    db = new DatabaseSync(target);
+    if (target !== ':memory:') {
+      db.exec('PRAGMA journal_mode = WAL;');
+    }
+  } catch (err) {
+    console.warn('SQLite unavailable, using in-memory store:', (err as Error).message);
+    return createMemoryStore();
   }
   db.exec(`
     PRAGMA foreign_keys = ON;
